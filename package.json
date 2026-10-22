@@ -1,0 +1,10 @@
+{
+  "name": "arena-de-pruebas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Competencia sincronizada por equipos para Diseños de investigación I (UdeC Facatativá)",
+  "scripts": {
+    "dev": "node dev-server.js"
+  },
+  "engines": { "node": ">=18" }
+}

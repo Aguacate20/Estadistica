@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Arena de Pruebas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="/arena.css">
+<meta name="theme-color" content="#0c1711">
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<canvas id="confetti" hidden></canvas>
+<script src="/shared/stats.js"></script>
+<script src="/shared/challenges.js"></script>
+<script src="/shared/plots.js"></script>
+<script>
+const S=ArenaStats,P=ArenaPlots,CH=ArenaChallenges.publicList();
+const $=s=>document.querySelector(s);const esc=P.esc;const LETTERS=["A","B","C","D"];
+const app=$("#app");
+function load(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch(_){return fb;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(_){}}
+let me=load("arena-me",null); // {code,teamId,token,name,emoji}
+let state=null; let offset=0; let pollTimer=null; let view="join"; let pending=null; let fb=null;
+const EMOJIS=["🧪","🧠","🔬","📊","🎯","🚀","🦉","🐙","🌵","⚡","🎲","🧩"];
+async function api(path,body){const r=await fetch("/api/"+path,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:undefined);const j=await r.json().catch(()=>({error:"Respuesta inválida"}));if(!r.ok)throw Object.assign(new Error(j.error||"Error"),{status:r.status,data:j});return j;}
+function toast(msg){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t);}t.textContent=msg;t.hidden=false;clearTimeout(t._t);t._t=setTimeout(()=>t.hidden=true,2600);}
+const ordinal=n=>n+".º";
+function timeLeft(){if(!state||!state.game.endsAt)return null;return Math.max(0,state.game.endsAt-(Date.now()+offset));}
+function fmtT(ms){const s=Math.ceil(ms/1000);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+
+/* ---------- red ---------- */
+async function refresh(){if(!me)return;try{const q=`state?code=${me.code}&team=${me.teamId}`;const s=await api(q);offset=s.game.serverNow-Date.now();state=s;onState();}catch(e){if(e.status===404){toast("La arena ya no existe. Vuelvan a entrar.");me=null;save("arena-me",null);view="join";render();}}}
+function startPolling(ms){clearInterval(pollTimer);pollTimer=setInterval(refresh,ms);}
+function onState(){
+  if(!state.you){me=null;save("arena-me",null);view="join";render();return;}
+  const g=state.game,you=state.you;
+  if(g.status==="lobby"){if(view!=="lobby"){view="lobby";}render();return;}
+  if(g.status==="ended"){view="ended";render();return;}
+  if(you.finishedAt){view="finished";render();return;}
+  if(view==="lobby"||view==="join"){view="play";fb=null;render();return;}
+  if(view==="play"){paintHeader();}
+}
+
+/* ---------- vistas ---------- */
+function render(){
+  if(!me||view==="join")return renderJoin();
+  if(view==="lobby")return renderLobby();
+  if(view==="play")return renderPlay();
+  if(view==="finished")return renderFinished();
+  if(view==="ended")return renderEnded();
+}
+function renderJoin(){
+  clearInterval(pollTimer);
+  const saved=load("arena-draft",{code:"",name:"",emoji:"🧪"});
+  app.innerHTML=`<div><div class="eyebrow">Diseños de investigación I · Corte III</div><h1>Arena de Pruebas</h1><p class="lead" style="font-size:17px">Quince retos para ver, con los ojos, cómo funcionan las pruebas estadísticas. Cada equipo avanza a su ritmo; el marcador se mueve en vivo en el proyector.</p></div>
+  <div class="card"><label class="eyebrow" for="code">Código de la arena</label><input class="code" type="text" id="code" maxlength="4" autocomplete="off" autocapitalize="characters" value="${esc(saved.code)}" placeholder="ABCD" style="margin-top:6px">
+    <label class="eyebrow" for="name" style="display:block;margin-top:14px">Nombre del equipo</label><input type="text" id="name" maxlength="24" value="${esc(saved.name)}" placeholder="p. ej., Los de la confianza en IA" style="margin-top:6px">
+    <div class="eyebrow" style="margin-top:14px">Su ficha</div><div class="emojis" id="em" style="margin-top:6px">${EMOJIS.map(e=>`<button type="button" aria-pressed="${e===saved.emoji}" data-e="${e}">${e}</button>`).join("")}</div>
+    <div class="row" style="margin-top:14px"><button class="btn big" id="go">Entrar a la arena</button></div><div class="hint" id="err" style="color:var(--red);margin-top:6px"></div></div>
+  <div class="card"><h3>Cómo se gana</h3><ul style="margin:8px 0 0;padding-left:20px;color:var(--ink2);line-height:1.6"><li>Cada reto da hasta <b>100 puntos</b>. Si fallan, pueden intentar otra vez por la mitad.</li><li>Tres retos perfectos seguidos: <b>racha</b>, +25 por cada uno más.</li><li>Lean la explicación después de cada reto: ahí está lo que se evalúa en el producto final.</li><li>Hablen antes de tocar. Gana quien justifica por el diseño, no quien adivina.</li></ul></div>`;
+  let emoji=saved.emoji;
+  document.querySelectorAll("#em button").forEach(b=>b.addEventListener("click",()=>{emoji=b.dataset.e;document.querySelectorAll("#em button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));}));
+  const go=async()=>{const code=$("#code").value.trim().toUpperCase(),name=$("#name").value.trim();save("arena-draft",{code,name,emoji});$("#err").textContent="";if(code.length!==4){$("#err").textContent="El código tiene 4 letras.";return;}if(!name){$("#err").textContent="Pongan un nombre de equipo.";return;}$("#go").disabled=true;
+    try{const r=await api("join",{code,name,emoji});me={code,teamId:r.teamId,token:r.token,name,emoji};save("arena-me",me);view="lobby";await refresh();startPolling(2500);}catch(e){$("#err").textContent=e.message;$("#go").disabled=false;}};
+  $("#go").addEventListener("click",go);$("#name").addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+}
+function header(){const you=state?.you;const left=timeLeft();return`<div class="top"><div><div class="eyebrow">Arena ${esc(me.code)}</div><h3 style="margin-top:2px">${esc(me.emoji)} ${esc(me.name)}</h3></div><div class="row" id="hdrPills">${you?`<span class="pill mint">${you.pts} pts</span><span class="pill">${ordinal(you.position)} de ${state.teams.length}</span>`:""}${left!==null&&state.game.status==="live"?`<span class="pill amber" id="tl">${fmtT(left)}</span>`:""}</div></div>`;}
+function paintHeader(){const h=$("#hdr");if(h)h.innerHTML=header();}
+function renderLobby(){
+  app.innerHTML=`<div id="hdr">${header()}</div><div class="card center"><div class="eyebrow">Esperando al profe</div><h2 style="margin-top:6px">La arena arranca cuando el profe la abra</h2><p class="lead">Ya están adentro. Mientras tanto, miren quién llegó.</p></div>
+  <div class="card"><h3>Equipos en la arena · ${state.teams.length}</h3><div class="row" style="margin-top:10px">${state.teams.map(t=>`<span class="pill ${t.id===me.teamId?"mint":""}">${esc(t.emoji)} ${esc(t.name)}</span>`).join("")}</div></div>
+  <div class="card"><h3>El recorrido</h3><ol style="margin:8px 0 0;padding-left:20px;color:var(--ink2);line-height:1.6">${[...new Set(CH.map(c=>c.zone))].map(z=>`<li><b>${esc(z)}</b> · ${CH.filter(c=>c.zone===z).length} reto${CH.filter(c=>c.zone===z).length>1?"s":""}</li>`).join("")}</ol></div>
+  <button class="btn sec" id="leave">Salir de la arena</button>`;
+  $("#leave").addEventListener("click",()=>{me=null;save("arena-me",null);view="join";render();});
+}
+/* ---------- juego ---------- */
+let ctl={};
+function renderPlay(){
+  const you=state.you;const c=CH[you.step];if(!c){view="finished";return render();}
+  const prog=`<div class="progress">${CH.map((x,i)=>`<span class="${i<you.step?"done":i===you.step?"cur":""}"></span>`).join("")}</div>`;
+  let body="";ctl={};
+  const attempts=(you.attempts&&you.attempts[c.id])||0;
+  if(c.kind==="signal"||c.kind==="dslider"){const {a,b}=S.sim(c.params.seed,c.params.n,c.params.n,c.params.d);body+=`<div class="card" style="padding:12px">${P.groups([a,b],["Control","Experimental"],"Puntaje en la variable dependiente",20,100)}</div>`;}
+  if(c.kind==="multi"||(c.kind==="mcq"&&c.params&&c.params.items))body+=`<div class="card" style="padding:12px">${P.cis(c.params.items)}</div>`;
+  if(c.kind==="mcq"&&c.params&&c.params.sig!==undefined)body+=`<div class="card" style="padding:12px">${P.repsFixed(c.params.sig,c.params.reps)}</div>`;
+  if(c.kind==="signal"||c.kind==="mcq"){body+=`<div class="opts" id="opts">${c.opts.map((o,i)=>`<button class="opt" type="button" data-i="${i}" aria-pressed="false"><span class="k">${LETTERS[i]}</span><span>${esc(o)}</span></button>`).join("")}</div><button class="btn big" id="send" disabled>Enviar respuesta</button>`;}
+  if(c.kind==="multi"){body+=`<div class="opts" id="opts">${c.opts.map((o,i)=>`<button class="opt" type="button" data-i="${i}" aria-pressed="false"><span class="k">${LETTERS[i]}</span><span>${esc(o)}</span></button>`).join("")}</div><p class="hint" style="margin:0">Pueden marcar varias. Toquen de nuevo para quitar.</p><button class="btn big" id="send" disabled>Enviar selección</button>`;}
+  if(c.kind==="dslider"){body+=`<div class="card"><div class="top"><span class="eyebrow">Su estimación</span><span class="big" id="val">d = 0.50</span></div><input type="range" id="sl" min="${c.params.min}" max="${c.params.max}" step="${c.params.step}" value="0.5"><div class="row" style="justify-content:space-between;font-size:13px;color:var(--muted)"><span>0 · nada</span><span>0.5 · mediano</span><span>1.5 · enorme</span></div><p class="hint" id="slh" style="margin-top:8px">Un d de 0.50 significa que las medias están separadas media desviación estándar.</p></div><button class="btn big" id="send">Enviar d = 0.50</button>`;}
+  if(c.kind==="nslider"){body+=`<div class="card" style="padding:12px" id="pw">${P.power(c.params.d,30)}</div><div class="card"><div class="top"><span class="eyebrow">Personas por grupo</span><span class="big" id="val">30</span></div><input type="range" id="sl" min="${c.params.min}" max="${c.params.max}" step="1" value="30"><p class="hint" id="slh" style="margin-top:8px">Con 30 por grupo la potencia es ${Math.round(S.power(c.params.d,30)*100)} %.</p></div><button class="btn big" id="send">Enviar n = 30</button>`;}
+  if(c.kind==="replicas"){body+=`<div class="card"><div class="top"><span class="eyebrow">Personas por grupo</span><span class="big" id="val">15</span></div><input type="range" id="sl" min="${c.params.min}" max="${c.params.max}" step="1" value="15"><div class="row" style="margin-top:8px"><button class="btn sec" id="run">▶ Correr la máquina (20 réplicas)</button></div><div id="repOut" style="margin-top:10px"><p class="hint" style="margin:0">Todavía no han corrido la máquina.</p></div></div><button class="btn big" id="send" disabled>Enviar n = 15</button>`;}
+  app.innerHTML=`<div id="hdr">${header()}</div>${prog}<div class="card"><div class="top"><span class="pill">Reto ${you.step+1} de ${CH.length}</span><span class="pill">${esc(c.zone)}</span>${attempts?`<span class="pill amber">intento ${attempts+1}</span>`:""}</div><h2 style="margin-top:10px">${esc(c.title)}</h2><p class="lead">${esc(c.lead)}</p><p style="margin:10px 0 0;font-size:17px;font-weight:700">${esc(c.prompt)}</p></div>${body}<div id="fb"></div>`;
+  wire(c);
+}
+function wire(c){
+  if(c.kind==="signal"||c.kind==="mcq"){document.querySelectorAll("#opts .opt").forEach(b=>b.addEventListener("click",()=>{ctl.answer=+b.dataset.i;document.querySelectorAll("#opts .opt").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));$("#send").disabled=false;}));}
+  if(c.kind==="multi"){ctl.answer=[];document.querySelectorAll("#opts .opt").forEach(b=>b.addEventListener("click",()=>{const i=+b.dataset.i;const on=b.getAttribute("aria-pressed")==="true";b.setAttribute("aria-pressed",String(!on));ctl.answer=on?ctl.answer.filter(x=>x!==i):[...ctl.answer,i];$("#send").disabled=ctl.answer.length===0;}));}
+  if(c.kind==="dslider"){const sl=$("#sl");ctl.answer=0.5;sl.addEventListener("input",()=>{const v=+sl.value;ctl.answer=v;$("#val").textContent="d = "+v.toFixed(2);$("#send").textContent="Enviar d = "+v.toFixed(2);$("#slh").textContent=v<0.2?"Casi nada: los dos grupos serían prácticamente iguales.":v<0.5?"Pequeño: se nota midiendo con cuidado, no a simple vista.":v<0.8?"Mediano: se nota, pero los grupos se traslapan mucho.":v<1.2?"Grande: se ve a simple vista en un grupo, aún con traslape.":"Enorme: casi no hay traslape entre los grupos.";});}
+  if(c.kind==="nslider"){const sl=$("#sl");ctl.answer=30;sl.addEventListener("input",()=>{const v=+sl.value;ctl.answer=v;$("#val").textContent=v;$("#send").textContent="Enviar n = "+v;$("#pw").innerHTML=P.power(c.params.d,v);$("#slh").textContent=`Con ${v} por grupo la potencia es ${Math.round(S.power(c.params.d,v)*100)} %.`;});}
+  if(c.kind==="replicas"){const sl=$("#sl");ctl.answer=15;let ran=false;sl.addEventListener("input",()=>{const v=+sl.value;ctl.answer=v;$("#val").textContent=v;$("#send").textContent="Enviar n = "+v;$("#send").disabled=true;$("#repOut").innerHTML=`<p class="hint" style="margin:0">Cambiaron el n: corran la máquina de nuevo.</p>`;});
+    $("#run").addEventListener("click",()=>{const n=ctl.answer;const r=S.replicate(c.params.seedBase,n,c.params.d,c.params.reps);$("#repOut").innerHTML=`<div class="top"><span class="big" style="color:${r.sig>=c.params.need?"var(--mint)":"var(--amber)"}">${r.sig} de ${c.params.reps}</span><span class="hint">meta: ${c.params.need} o más</span></div><div style="margin-top:8px">${P.reps(r.ps,c.params.need)}</div><p class="hint" style="margin-top:8px">${r.sig>=c.params.need?"Alcanza. ¿Será que con menos gente también? Prueben bajar el n antes de enviar: menos personas, más puntos.":"No alcanza: con este n el mismo experimento fallaría muchas veces. Suban el n."}</p>`;$("#send").disabled=false;});}
+  $("#send").addEventListener("click",submit);
+}
+async function submit(){
+  const you=state.you;const c=CH[you.step];const btn=$("#send");btn.disabled=true;btn.textContent="Enviando…";
+  try{const r=await api("submit",{code:me.code,team:me.teamId,token:me.token,ch:c.id,answer:ctl.answer});
+    state.you={...state.you,...r.you,attempts:{...(state.you.attempts||{}),[c.id]:((state.you.attempts||{})[c.id]||0)+1}};paintHeader();
+    showFeedback(c,r);}
+  catch(e){if(e.status===409&&e.data.you){await refresh();render();return;}toast(e.message);btn.disabled=false;btn.textContent="Enviar";}
+}
+function showFeedback(c,r){
+  document.querySelectorAll("#opts .opt").forEach(b=>{b.disabled=true;const i=+b.dataset.i;if(r.done){const key=Array.isArray(r.correct)?r.correct:[r.correct];if(key.includes(i))b.classList.add("ok");else if(b.getAttribute("aria-pressed")==="true")b.classList.add("bad");}else if(b.getAttribute("aria-pressed")==="true")b.classList.add("bad");});
+  const sendBtn=$("#send");if(sendBtn)sendBtn.hidden=true;
+  const total=r.pts+(r.bonus||0);
+  const head=r.done?(r.ok?(total>=100?"¡Perfecto!":"¡Bien!"):"Esta vez no."):(r.ok?"":"Todavía no.");
+  $("#fb").innerHTML=`<div class="card center"><div class="score ${total>0?"":"bad"}">${total>0?"+"+total:total<0?total:"0"}</div><p style="margin:6px 0 0;font-weight:800;font-size:18px">${head} ${r.bonus?`🔥 Racha: +${r.bonus}`:""}</p>${r.detail?`<p class="lead">${esc(r.detail)}</p>`:""}</div>
+  ${r.done?`<div class="why"><b>Por qué:</b> ${esc(r.why)}</div><button class="btn big" id="next">${state.you.finishedAt?"Ver el marcador final":"Siguiente reto →"}</button>`:`<button class="btn big warn" id="retry">Intentar de nuevo${c.kind==="mcq"||c.kind==="signal"?" (vale la mitad)":""}</button>`}`;
+  $("#fb").scrollIntoView({behavior:"smooth",block:"start"});
+  const nx=$("#next");if(nx)nx.addEventListener("click",()=>{fb=null;if(state.you.finishedAt){view="finished";render();refresh();}else{render();refresh();}});
+  const rt=$("#retry");if(rt)rt.addEventListener("click",()=>{render();});
+}
+function renderFinished(){
+  const you=state.you;
+  app.innerHTML=`<div id="hdr">${header()}</div><div class="card center"><div class="eyebrow">Recorrido completo</div><div class="score" style="margin-top:8px">${you.pts} pts</div><p class="lead">Van ${ordinal(you.position)} de ${state.teams.length}. El marcador sigue vivo hasta que el profe cierre la arena.</p></div>${rankCard()}
+  <div class="card"><h3>Su recorrido</h3><table style="margin-top:8px"><thead><tr><th>Reto</th><th>Intentos</th><th>Puntos</th></tr></thead><tbody>${(you.log||[]).map(l=>{const c=CH.find(x=>x.id===l.ch);return`<tr><td>${esc(c?c.title:l.ch)}</td><td>${l.attempts}</td><td>${l.pts}</td></tr>`;}).join("")}</tbody></table></div>`;
+  startPolling(3000);
+}
+function rankCard(){const max=Math.max(1,...state.teams.map(t=>t.pts));return`<div class="card"><h3>Marcador en vivo</h3><div class="rank" style="margin-top:10px">${state.teams.map((t,k)=>`<div class="r ${t.id===me.teamId?"me":""}"><div class="n">${k+1}</div><div class="track"><span style="width:${Math.max(6,t.pts/max*100)}%"></span><b>${esc(t.emoji)} ${esc(t.name)} · reto ${Math.min(t.step+1,t.total)}/${t.total}</b></div><div class="p">${t.pts}</div></div>`).join("")}</div></div>`;}
+function renderEnded(){
+  clearInterval(pollTimer);const rk=state.teams;const you=state.you;
+  app.innerHTML=`<div id="hdr">${header()}</div><h1 class="center">¡Se acabó la arena!</h1><div class="podium"><div class="p2"><small>2.º</small><b>${esc(rk[1]?rk[1].emoji+" "+rk[1].name:"—")}</b><small>${rk[1]?.pts??0} pts</small></div><div class="p1"><small>1.º</small><b>${esc(rk[0]?rk[0].emoji+" "+rk[0].name:"—")}</b><small>${rk[0]?.pts??0} pts</small></div><div class="p3"><small>3.º</small><b>${esc(rk[2]?rk[2].emoji+" "+rk[2].name:"—")}</b><small>${rk[2]?.pts??0} pts</small></div></div>
+  <div class="card center"><p style="margin:0;font-weight:800;font-size:18px">${esc(me.emoji)} ${esc(me.name)}: ${ordinal(you.position)} con ${you.pts} puntos</p></div>${rankCard()}
+  <div class="why"><b>Lo que se llevan:</b> t = señal ÷ ruido; con pocos participantes el azar esconde señales grandes; significativo no es grande ni importante; el d con su intervalo dice cuánto y con qué certeza; la prueba la decide el diseño, siempre en versión Welch; y el resultado se escribe con medias, estadístico, p, d e IC, sin adjetivos.</div>
+  <button class="btn sec" id="leave">Salir</button>`;
+  $("#leave").addEventListener("click",()=>{me=null;save("arena-me",null);view="join";render();});
+  if(you.position<=3)confetti();
+}
+function confetti(){const c=$("#confetti");c.hidden=false;const ctx=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;const cols=["#5fe0a0","#ffb347","#7fb2ff","#ff7b6b","#eef6f0"];const Pz=Array.from({length:140},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height,v:2+Math.random()*4,w:6+Math.random()*8,a:Math.random()*6.28,s:(Math.random()-.5)*.2,col:cols[Math.floor(Math.random()*cols.length)]}));let t=0;const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;(function f(){ctx.clearRect(0,0,c.width,c.height);Pz.forEach(p=>{p.y+=p.v;p.a+=p.s;if(p.y>c.height+20){p.y=-20;p.x=Math.random()*c.width;}ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=p.col;ctx.fillRect(-p.w/2,-p.w/4,p.w,p.w/2);ctx.restore();});if(++t<(reduce?1:360))requestAnimationFrame(f);else c.hidden=true;})();}
+/* reloj del encabezado */
+setInterval(()=>{const el=$("#tl");if(!el)return;const l=timeLeft();if(l===null)return;el.textContent=fmtT(l);if(l<=60000)el.classList.add("red");if(l<=0&&state&&state.game.status==="live")refresh();},1000);
+
+/* ---------- arranque ---------- */
+(async()=>{if(me){try{await refresh();if(state){startPolling(state.game.status==="live"?4000:2500);return;}}catch(_){}}render();})();
+</script>
+</body>
+</html>

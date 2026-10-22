@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Arena de Pruebas · proyector</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="/arena.css">
+<meta name="theme-color" content="#0c1711">
+</head>
+<body>
+<div class="wrap" id="app" style="max-width:1280px"></div>
+<canvas id="confetti" hidden></canvas>
+<script src="/shared/stats.js"></script>
+<script src="/shared/challenges.js"></script>
+<script src="/shared/plots.js"></script>
+<script>
+const CH=ArenaChallenges.publicList();const $=s=>document.querySelector(s);const esc=ArenaPlots.esc;const app=$("#app");
+function load(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch(_){return fb;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(_){}}
+let host=load("arena-host",null); // {code,hostKey}
+let state=null,offset=0,poll=null,view=null,confettiDone=false;
+async function api(path,body){const r=await fetch("/api/"+path,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:undefined);const j=await r.json().catch(()=>({error:"Respuesta inválida"}));if(!r.ok)throw Object.assign(new Error(j.error||"Error"),{status:r.status});return j;}
+const fmtT=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
+const timeLeft=()=>state&&state.game.endsAt?Math.max(0,state.game.endsAt-(Date.now()+offset)):null;
+const baseUrl=()=>location.origin+"/";
+
+async function refresh(){if(!host)return;try{const s=await api("state?code="+host.code);offset=s.game.serverNow-Date.now();state=s;render();}catch(e){if(e.status===404){host=null;save("arena-host",null);render();}}}
+async function act(action,extra){try{await api("host",{code:host.code,hostKey:host.hostKey,action,...(extra||{})});await refresh();}catch(e){alertBox(e.message);}}
+function alertBox(m){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t);}t.textContent=m;t.hidden=false;clearTimeout(t._t);t._t=setTimeout(()=>t.hidden=true,3000);}
+
+function render(){
+  if(!host)return renderCreate();
+  if(!state)return;
+  const g=state.game;
+  if(g.status==="lobby")return renderLobby();
+  if(g.status==="live")return renderLive();
+  return renderEnded();
+}
+function renderCreate(){
+  clearInterval(poll);
+  app.innerHTML=`<div><div class="eyebrow">Diseños de investigación I · proyector</div><h1>Arena de Pruebas</h1><p class="lead" style="font-size:17px;max-width:62ch">Cree una arena, proyecte el código y deje que los equipos entren desde el celular. Usted ve la carrera y el marcador en vivo; ellos avanzan a su ritmo por quince retos.</p></div>
+  <div class="card"><div class="row"><label for="dur" class="eyebrow">Duración</label><select id="dur" style="width:auto"><option value="15">15 min</option><option value="20" selected>20 min</option><option value="25">25 min</option><option value="30">30 min</option><option value="45">45 min</option></select><button class="btn big" id="create" style="width:auto">Crear arena</button></div><p class="hint" style="margin-top:10px">El reloj arranca cuando pulse “Abrir la arena”, no ahora. Puede sumar 5 minutos en cualquier momento.</p></div>
+  <div class="card"><h3>Los quince retos</h3><div class="row" style="margin-top:8px">${CH.map((c,i)=>`<span class="pill">${i+1} · ${esc(c.title)}</span>`).join("")}</div></div>`;
+  $("#create").addEventListener("click",async()=>{try{const r=await api("create",{durationMin:+$("#dur").value});host={code:r.code,hostKey:r.hostKey};save("arena-host",host);if(r.store==="memoria")alertBox("Sin base de datos conectada: la arena vive solo mientras el servidor no se reinicie.");await refresh();poll=setInterval(refresh,2000);}catch(e){alertBox(e.message);}});
+}
+function controls(){return`<div class="row"><button class="btn sec" id="extend">+5 min</button><button class="btn warn" id="end">Terminar</button><button class="btn sec" id="reset">Reiniciar</button><button class="btn sec" id="newg">Nueva arena</button></div>`;}
+function wireControls(){const e=$("#extend");if(e)e.addEventListener("click",()=>act("extend"));const x=$("#end");if(x)x.addEventListener("click",()=>{if(x.dataset.c){act("end");}else{x.dataset.c="1";x.textContent="¿Seguro? Toque otra vez";setTimeout(()=>{x.dataset.c="";x.textContent="Terminar";},2500);}});const r=$("#reset");if(r)r.addEventListener("click",()=>{if(r.dataset.c){act("reset");}else{r.dataset.c="1";r.textContent="¿Borrar puntajes? Toque otra vez";setTimeout(()=>{r.dataset.c="";r.textContent="Reiniciar";},2500);}});const n=$("#newg");if(n)n.addEventListener("click",()=>{host=null;save("arena-host",null);state=null;render();});}
+function renderLobby(){
+  const g=state.game;
+  app.innerHTML=`<div class="top"><div class="eyebrow">Arena de Pruebas · entren en <b>${esc(baseUrl().replace(/^https?:\/\//,""))}</b></div><span class="pill">${esc(g.store==="memoria"?"sin base de datos":"en línea")}</span></div>
+  <div class="card center"><div class="eyebrow">Código de la arena</div><div class="codebig">${esc(g.code)}</div><p class="lead">En el celular: ${esc(baseUrl().replace(/^https?:\/\//,""))} → código → nombre del equipo → ficha.</p></div>
+  <div class="card"><div class="top"><h3>Equipos listos · ${state.teams.length}</h3><span class="hint">se actualiza solo</span></div><div class="row" style="margin-top:10px;font-size:18px">${state.teams.length?state.teams.map(t=>`<span class="pill" style="font-size:17px">${esc(t.emoji)} ${esc(t.name)} <button type="button" data-rm="${t.id}" title="Quitar" style="background:none;border:0;color:var(--muted);cursor:pointer;font-size:16px">✕</button></span>`).join(""):'<span class="hint">Todavía nadie. Proyecte el código.</span>'}</div></div>
+  <div class="row"><button class="btn big" id="start" style="width:auto" ${state.teams.length?"":"disabled"}>Abrir la arena · ${g.durationMin} min</button><select id="dur2" style="width:auto">${[15,20,25,30,45].map(m=>`<option value="${m}" ${m===g.durationMin?"selected":""}>${m} min</option>`).join("")}</select><button class="btn sec" id="newg">Nueva arena</button></div>`;
+  $("#start").addEventListener("click",()=>act("start",{durationMin:+$("#dur2").value}));$("#newg").addEventListener("click",()=>{host=null;save("arena-host",null);state=null;render();});
+  document.querySelectorAll("[data-rm]").forEach(b=>b.addEventListener("click",()=>act("remove",{teamId:b.dataset.rm})));
+}
+function renderLive(){
+  const g=state.game;const teams=state.teams;const N=CH.length;const max=Math.max(1,...teams.map(t=>t.pts));
+  const left=timeLeft();
+  app.innerHTML=`<div class="top"><div><div class="eyebrow">Arena ${esc(g.code)} · ${esc(baseUrl().replace(/^https?:\/\//,""))}</div><h2>Carrera en vivo</h2></div><div class="timer ${left<=60000?"low":""}" id="clock" style="font-size:clamp(34px,6vw,72px)">${fmtT(left)}</div></div>
+  <div class="card"><div class="race">${teams.map(t=>{const pct=Math.min(1,t.step/N);return`<div class="lane"><div class="who">${esc(t.emoji)} ${esc(t.name)}${t.streak>=3?' <span title="racha">🔥</span>':""}</div><div class="trk">${Array.from({length:N-1},(_,i)=>`<i class="seg" style="left:${(i+1)/N*100}%"></i>`).join("")}<div class="fill" style="width:${pct*100}%"></div><div class="car" style="left:${Math.max(3,Math.min(97,pct*100))}%">${t.finishedAt?"🏁":esc(t.emoji)}</div></div><div class="pts">${t.pts}</div></div>`;}).join("")}</div><div class="row" style="justify-content:space-between;margin-top:10px"><span class="hint">Zonas: ${[...new Set(CH.map(c=>c.zone))].join(" · ")}</span><span class="hint">${teams.filter(t=>t.finishedAt).length} de ${teams.length} terminaron</span></div></div>
+  <div class="card"><h3>Marcador</h3><div class="rank" style="margin-top:10px">${teams.map((t,k)=>`<div class="r"><div class="n">${k+1}</div><div class="track"><span style="width:${Math.max(6,t.pts/max*100)}%"></span><b>${esc(t.emoji)} ${esc(t.name)} · reto ${Math.min(t.step+1,N)}/${N}</b></div><div class="p">${t.pts}</div></div>`).join("")}</div></div>
+  ${controls()}`;
+  wireControls();
+}
+function renderEnded(){
+  clearInterval(poll);const rk=state.teams;
+  // retos más difíciles: % de equipos con 100 al primer intento
+  const logs=[];rk.forEach(t=>{});// (los logs completos viven en el celular de cada equipo)
+  app.innerHTML=`<div class="top"><div class="eyebrow">Arena ${esc(state.game.code)}</div></div><h1 class="center">¡Se acabó la arena!</h1>
+  <div class="podium"><div class="p2"><small>2.º</small><b>${esc(rk[1]?rk[1].emoji+" "+rk[1].name:"—")}</b><small>${rk[1]?.pts??0} pts</small></div><div class="p1"><small>1.º</small><b>${esc(rk[0]?rk[0].emoji+" "+rk[0].name:"—")}</b><small>${rk[0]?.pts??0} pts</small></div><div class="p3"><small>3.º</small><b>${esc(rk[2]?rk[2].emoji+" "+rk[2].name:"—")}</b><small>${rk[2]?.pts??0} pts</small></div></div>
+  <div class="card"><div class="rank">${rk.map((t,k)=>`<div class="r"><div class="n">${k+1}</div><div class="track"><span style="width:${Math.max(6,t.pts/Math.max(1,rk[0]?.pts||1)*100)}%"></span><b>${esc(t.emoji)} ${esc(t.name)} · ${Math.min(t.step,CH.length)} de ${CH.length} retos</b></div><div class="p">${t.pts}</div></div>`).join("")}</div></div>
+  <div class="why"><b>Para cerrar en voz alta:</b> t = señal ÷ ruido; con pocos participantes el azar esconde señales grandes (reto 2); significativo no es grande (reto 3); el d con su intervalo dice cuánto y con qué certeza; la prueba la decide el diseño, siempre en versión Welch; y el resultado se escribe con medias, estadístico, p, d e IC, sin adjetivos.</div>
+  <div class="row"><button class="btn sec" id="reopen">Reabrir 5 min</button><button class="btn sec" id="reset">Reiniciar puntajes</button><button class="btn sec" id="newg">Nueva arena</button></div>`;
+  $("#reopen").addEventListener("click",()=>{act("reopen").then(()=>{poll=setInterval(refresh,2000);});});
+  const r=$("#reset");r.addEventListener("click",()=>{act("reset").then(()=>{poll=setInterval(refresh,2000);});});
+  $("#newg").addEventListener("click",()=>{host=null;save("arena-host",null);state=null;render();});
+  if(!confettiDone){confettiDone=true;confetti();}
+}
+function confetti(){const c=$("#confetti");c.hidden=false;const ctx=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;const cols=["#5fe0a0","#ffb347","#7fb2ff","#ff7b6b","#eef6f0"];const Pz=Array.from({length:180},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height,v:2+Math.random()*4,w:6+Math.random()*8,a:Math.random()*6.28,s:(Math.random()-.5)*.2,col:cols[Math.floor(Math.random()*cols.length)]}));let t=0;const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;(function f(){ctx.clearRect(0,0,c.width,c.height);Pz.forEach(p=>{p.y+=p.v;p.a+=p.s;if(p.y>c.height+20){p.y=-20;p.x=Math.random()*c.width;}ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=p.col;ctx.fillRect(-p.w/2,-p.w/4,p.w,p.w/2);ctx.restore();});if(++t<(reduce?1:420))requestAnimationFrame(f);else c.hidden=true;})();}
+setInterval(()=>{const el=$("#clock");if(!el)return;const l=timeLeft();if(l===null)return;el.textContent=fmtT(l);if(l<=60000)el.classList.add("low");},1000);
+(async()=>{if(host){await refresh();poll=setInterval(refresh,2000);}else render();})();
+</script>
+</body>
+</html>
