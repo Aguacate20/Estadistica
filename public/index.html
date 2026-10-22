@@ -21,7 +21,7 @@ const app=$("#app");
 function load(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch(_){return fb;}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(_){}}
 let me=load("arena-me",null); // {code,teamId,token,name,emoji}
-let state=null; let offset=0; let pollTimer=null; let view="join"; let pending=null; let fb=null;
+let state=null; let offset=0; let pollTimer=null; let view=location.hash==="#equipo"?"join":"home"; let pending=null; let fb=null;
 const EMOJIS=["🧪","🧠","🔬","📊","🎯","🚀","🦉","🐙","🌵","⚡","🎲","🧩"];
 async function api(path,body){const r=await fetch("/api/"+path,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:undefined);const j=await r.json().catch(()=>({error:"Respuesta inválida"}));if(!r.ok)throw Object.assign(new Error(j.error||"Error"),{status:r.status,data:j});return j;}
 function toast(msg){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t);}t.textContent=msg;t.hidden=false;clearTimeout(t._t);t._t=setTimeout(()=>t.hidden=true,2600);}
@@ -30,10 +30,10 @@ function timeLeft(){if(!state||!state.game.endsAt)return null;return Math.max(0,
 function fmtT(ms){const s=Math.ceil(ms/1000);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
 
 /* ---------- red ---------- */
-async function refresh(){if(!me)return;try{const q=`state?code=${me.code}&team=${me.teamId}`;const s=await api(q);offset=s.game.serverNow-Date.now();state=s;onState();}catch(e){if(e.status===404){toast("La arena ya no existe. Vuelvan a entrar.");me=null;save("arena-me",null);view="join";render();}}}
+async function refresh(){if(!me)return;try{const q=`state?code=${me.code}&team=${me.teamId}`;const s=await api(q);offset=s.game.serverNow-Date.now();state=s;onState();}catch(e){if(e.status===404){toast("La arena ya no existe. Vuelvan a entrar.");me=null;save("arena-me",null);view="home";render();}}}
 function startPolling(ms){clearInterval(pollTimer);pollTimer=setInterval(refresh,ms);}
 function onState(){
-  if(!state.you){me=null;save("arena-me",null);view="join";render();return;}
+  if(!state.you){me=null;save("arena-me",null);view="home";render();return;}
   const g=state.game,you=state.you;
   if(g.status==="lobby"){if(view!=="lobby"){view="lobby";}render();return;}
   if(g.status==="ended"){view="ended";render();return;}
@@ -44,11 +44,23 @@ function onState(){
 
 /* ---------- vistas ---------- */
 function render(){
+  if(!me&&view==="home")return renderHome();
   if(!me||view==="join")return renderJoin();
   if(view==="lobby")return renderLobby();
   if(view==="play")return renderPlay();
   if(view==="finished")return renderFinished();
   if(view==="ended")return renderEnded();
+}
+function renderHome(){
+  clearInterval(pollTimer);
+  app.innerHTML=`<div><div class="eyebrow">Diseños de investigación I · Corte III</div><h1>Arena de Pruebas</h1><p class="lead" style="font-size:17px;max-width:62ch">Una competencia por equipos para ver, con los ojos, cómo funcionan las pruebas estadísticas: señal y ruido, tamaño del efecto, cuántos participantes hacen falta, qué prueba toca y cómo se escribe un resultado. Quince retos, un reloj y un marcador en vivo.</p></div>
+  <div class="opts">
+    <button class="opt" id="goTeam" style="min-height:84px"><span class="k">📱</span><span><b style="font-size:18px">Soy un equipo</b><br><span class="hint">Tenemos el código de 4 letras que puso el profe en el proyector.</span></span></button>
+    <a class="opt" href="/profe" style="min-height:84px;text-decoration:none"><span class="k">📺</span><span><b style="font-size:18px">Soy el profe</b><br><span class="hint">Crear la arena, proyectar el código, abrir el reloj y ver la carrera.</span></span></a>
+  </div>
+  <div class="card"><h3>Cómo se juega</h3><ol style="margin:8px 0 0;padding-left:20px;color:var(--ink2);line-height:1.65"><li>El profe crea una arena y proyecta un <b>código de 4 letras</b>.</li><li>Cada equipo entra con ese código, su nombre y una ficha. Aparece en el proyector al instante.</li><li>Cuando el profe abre la arena arranca el reloj. Cada equipo recorre los <b>15 retos a su ritmo</b> desde el celular; el proyector muestra la carrera y el marcador en vivo.</li><li>Cada reto vale hasta <b>100 puntos</b>; si fallan, pueden reintentar por la mitad. Tres retos perfectos seguidos: <b>racha</b>, +25 por cada uno más.</li><li>Después de cada reto aparece el <b>porqué</b>: ahí está lo que se evalúa en el producto final.</li><li>Al terminar el reloj, podio para todos.</li></ol></div>
+  <div class="card"><h3>Las seis zonas del recorrido</h3><div class="row" style="margin-top:8px">${[...new Set(CH.map(c=>c.zone))].map(z=>`<span class="pill">${esc(z)} · ${CH.filter(c=>c.zone===z).length}</span>`).join("")}</div><p class="hint" style="margin-top:10px">Hablen antes de tocar. Gana quien justifica por el diseño, no quien adivina.</p></div>`;
+  $("#goTeam").addEventListener("click",()=>{view="join";render();});
 }
 function renderJoin(){
   clearInterval(pollTimer);
@@ -58,12 +70,12 @@ function renderJoin(){
     <label class="eyebrow" for="name" style="display:block;margin-top:14px">Nombre del equipo</label><input type="text" id="name" maxlength="24" value="${esc(saved.name)}" placeholder="p. ej., Los de la confianza en IA" style="margin-top:6px">
     <div class="eyebrow" style="margin-top:14px">Su ficha</div><div class="emojis" id="em" style="margin-top:6px">${EMOJIS.map(e=>`<button type="button" aria-pressed="${e===saved.emoji}" data-e="${e}">${e}</button>`).join("")}</div>
     <div class="row" style="margin-top:14px"><button class="btn big" id="go">Entrar a la arena</button></div><div class="hint" id="err" style="color:var(--red);margin-top:6px"></div></div>
-  <div class="card"><h3>Cómo se gana</h3><ul style="margin:8px 0 0;padding-left:20px;color:var(--ink2);line-height:1.6"><li>Cada reto da hasta <b>100 puntos</b>. Si fallan, pueden intentar otra vez por la mitad.</li><li>Tres retos perfectos seguidos: <b>racha</b>, +25 por cada uno más.</li><li>Lean la explicación después de cada reto: ahí está lo que se evalúa en el producto final.</li><li>Hablen antes de tocar. Gana quien justifica por el diseño, no quien adivina.</li></ul></div>`;
+  <button class="btn sec" id="back">← Volver al inicio</button>`;
   let emoji=saved.emoji;
   document.querySelectorAll("#em button").forEach(b=>b.addEventListener("click",()=>{emoji=b.dataset.e;document.querySelectorAll("#em button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));}));
   const go=async()=>{const code=$("#code").value.trim().toUpperCase(),name=$("#name").value.trim();save("arena-draft",{code,name,emoji});$("#err").textContent="";if(code.length!==4){$("#err").textContent="El código tiene 4 letras.";return;}if(!name){$("#err").textContent="Pongan un nombre de equipo.";return;}$("#go").disabled=true;
     try{const r=await api("join",{code,name,emoji});me={code,teamId:r.teamId,token:r.token,name,emoji};save("arena-me",me);view="lobby";await refresh();startPolling(2500);}catch(e){$("#err").textContent=e.message;$("#go").disabled=false;}};
-  $("#go").addEventListener("click",go);$("#name").addEventListener("keydown",e=>{if(e.key==="Enter")go();});
+  $("#go").addEventListener("click",go);$("#name").addEventListener("keydown",e=>{if(e.key==="Enter")go();});$("#back").addEventListener("click",()=>{view="home";render();});
 }
 function header(){const you=state?.you;const left=timeLeft();return`<div class="top"><div><div class="eyebrow">Arena ${esc(me.code)}</div><h3 style="margin-top:2px">${esc(me.emoji)} ${esc(me.name)}</h3></div><div class="row" id="hdrPills">${you?`<span class="pill mint">${you.pts} pts</span><span class="pill">${ordinal(you.position)} de ${state.teams.length}</span>`:""}${left!==null&&state.game.status==="live"?`<span class="pill amber" id="tl">${fmtT(left)}</span>`:""}</div></div>`;}
 function paintHeader(){const h=$("#hdr");if(h)h.innerHTML=header();}
@@ -72,7 +84,7 @@ function renderLobby(){
   <div class="card"><h3>Equipos en la arena · ${state.teams.length}</h3><div class="row" style="margin-top:10px">${state.teams.map(t=>`<span class="pill ${t.id===me.teamId?"mint":""}">${esc(t.emoji)} ${esc(t.name)}</span>`).join("")}</div></div>
   <div class="card"><h3>El recorrido</h3><ol style="margin:8px 0 0;padding-left:20px;color:var(--ink2);line-height:1.6">${[...new Set(CH.map(c=>c.zone))].map(z=>`<li><b>${esc(z)}</b> · ${CH.filter(c=>c.zone===z).length} reto${CH.filter(c=>c.zone===z).length>1?"s":""}</li>`).join("")}</ol></div>
   <button class="btn sec" id="leave">Salir de la arena</button>`;
-  $("#leave").addEventListener("click",()=>{me=null;save("arena-me",null);view="join";render();});
+  $("#leave").addEventListener("click",()=>{me=null;save("arena-me",null);view="home";render();});
 }
 /* ---------- juego ---------- */
 let ctl={};
@@ -132,7 +144,7 @@ function renderEnded(){
   <div class="card center"><p style="margin:0;font-weight:800;font-size:18px">${esc(me.emoji)} ${esc(me.name)}: ${ordinal(you.position)} con ${you.pts} puntos</p></div>${rankCard()}
   <div class="why"><b>Lo que se llevan:</b> t = señal ÷ ruido; con pocos participantes el azar esconde señales grandes; significativo no es grande ni importante; el d con su intervalo dice cuánto y con qué certeza; la prueba la decide el diseño, siempre en versión Welch; y el resultado se escribe con medias, estadístico, p, d e IC, sin adjetivos.</div>
   <button class="btn sec" id="leave">Salir</button>`;
-  $("#leave").addEventListener("click",()=>{me=null;save("arena-me",null);view="join";render();});
+  $("#leave").addEventListener("click",()=>{me=null;save("arena-me",null);view="home";render();});
   if(you.position<=3)confetti();
 }
 function confetti(){const c=$("#confetti");c.hidden=false;const ctx=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;const cols=["#5fe0a0","#ffb347","#7fb2ff","#ff7b6b","#eef6f0"];const Pz=Array.from({length:140},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height,v:2+Math.random()*4,w:6+Math.random()*8,a:Math.random()*6.28,s:(Math.random()-.5)*.2,col:cols[Math.floor(Math.random()*cols.length)]}));let t=0;const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;(function f(){ctx.clearRect(0,0,c.width,c.height);Pz.forEach(p=>{p.y+=p.v;p.a+=p.s;if(p.y>c.height+20){p.y=-20;p.x=Math.random()*c.width;}ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.fillStyle=p.col;ctx.fillRect(-p.w/2,-p.w/4,p.w,p.w/2);ctx.restore();});if(++t<(reduce?1:360))requestAnimationFrame(f);else c.hidden=true;})();}
