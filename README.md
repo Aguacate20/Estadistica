@@ -7,15 +7,19 @@ Juego por equipos para la Sesión 6 de *Diseños de investigación I* (Corte III
 - `/api/*` → funciones serverless (Node, sin dependencias)
 - `public/shared/challenges.js` → los retos; `grade()` califica en el servidor (el celular nunca recibe las respuestas)
 
-## Desplegar en Vercel (10 minutos)
+## Desplegar en Vercel con Supabase (15 minutos)
 
-1. Suba esta carpeta a un repositorio de GitHub (o use `npx vercel` desde la carpeta).
-2. En Vercel: **Add New → Project → Import** el repositorio. Framework: *Other*. No hay build.
-3. Base de datos (para que todos los celulares vean lo mismo): en el proyecto de Vercel, pestaña **Storage → Create Database → Upstash for Redis** (plan gratuito). Conéctela al proyecto; Vercel crea las variables `KV_REST_API_URL` y `KV_REST_API_TOKEN` (también sirven `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`).
-4. **Redeploy** para que las funciones vean las variables.
-5. Abra `https://SU-PROYECTO.vercel.app/profe`, cree la arena y proyecte el código. Los equipos entran en `https://SU-PROYECTO.vercel.app`.
+1. Suba la carpeta a GitHub e impórtela en Vercel (**Add New → Project → Import**; framework *Other*, sin build).
+2. En [supabase.com](https://supabase.com) cree un proyecto (plan gratuito). En **SQL Editor → New query** pegue el contenido de `supabase.sql` y pulse **Run**: crea las dos tablas (`arena_kv`, `arena_hash`).
+3. En Supabase, **Project Settings → API**: copie la **Project URL** y la **service_role key** (la secreta, no la anon).
+4. En Vercel, **Settings → Environment Variables** del proyecto, agregue:
+   - `SUPABASE_URL` = la Project URL (https://xxxx.supabase.co)
+   - `SUPABASE_SERVICE_ROLE_KEY` = la service_role key
+   Marque Production, Preview y Development → Save.
+5. **Deployments → ⋯ → Redeploy**. Las funciones leen las variables solo en el despliegue siguiente.
+6. Abra `https://SU-PROYECTO.vercel.app/profe`, pulse **Crear arena**: el chip debe decir **en línea · supabase**.
 
-Sin base de datos la arena funciona en memoria (sirve para probar en un solo computador, no para la clase: cada función serverless tiene su propia memoria).
+La service_role key solo vive en las funciones del servidor (`/api`); nunca llega al navegador. También se admite Upstash Redis (variables `KV_REST_API_URL` / `KV_REST_API_TOKEN`, creadas por Vercel → Storage). Sin ninguna de las dos la arena funciona en memoria, que sirve para probar en un solo computador pero no para la clase.
 
 ## Probar en el computador
 
