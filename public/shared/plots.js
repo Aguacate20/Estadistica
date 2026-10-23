@@ -11,6 +11,23 @@
       const m = S.mean(g), se = S.sd(g) / Math.sqrt(g.length); s += `<line x1="${x(m - 1.96 * se)}" y1="${y0}" x2="${x(m + 1.96 * se)}" y2="${y0}" stroke="${cols[gi]}" stroke-width="5"/><rect x="${x(m) - 3}" y="${y0 - 20}" width="6" height="40" rx="2" fill="${cols[gi]}"/>`; });
     return s + "</svg>";
   }
+  function scatter(x, y, label) {
+    const W = 360, H = 300, pad = 28; const lo = 0, hi = 100; const sx = v => pad + (v - lo) / (hi - lo) * (W - 2 * pad), sy = v => H - pad - (v - lo) / (hi - lo) * (H - 2 * pad);
+    let s = `<svg class="plot" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label || "Dispersión")}">`;
+    [25, 50, 75].forEach(v => { s += `<line x1="${sx(v)}" y1="${pad}" x2="${sx(v)}" y2="${H - pad}" stroke="var(--line)"/><line x1="${pad}" y1="${sy(v)}" x2="${W - pad}" y2="${sy(v)}" stroke="var(--line)"/>`; });
+    s += `<rect x="${pad}" y="${pad}" width="${W - 2 * pad}" height="${H - 2 * pad}" fill="none" stroke="var(--line)"/>`;
+    x.forEach((v, i) => { s += `<circle cx="${sx(Math.max(lo, Math.min(hi, v))).toFixed(1)}" cy="${sy(Math.max(lo, Math.min(hi, y[i]))).toFixed(1)}" r="5" fill="var(--blue)" fill-opacity=".6"/>`; });
+    if (label) s += `<text x="${W / 2}" y="${H - 8}" font-size="16" text-anchor="middle" fill="var(--ink)" font-weight="800" font-family="Bricolage Grotesque,sans-serif">${esc(label)}</text>`;
+    s += `<text x="${W - pad}" y="${pad - 8}" font-size="11" text-anchor="end" fill="var(--muted)">X →   Y ↑</text>`;
+    return s + "</svg>";
+  }
+  function miniGroups(a, b, label) {
+    const W = 360, H = 110, padL = 40, padR = 12, lo = 20, hi = 100; const x = v => padL + (v - lo) / (hi - lo) * (W - padL - padR);
+    let s = `<svg class="plot" viewBox="0 0 ${W} ${H}" role="img" aria-label="Estudio ${esc(label)}">`;
+    s += `<text x="12" y="${H / 2 + 8}" font-size="26" font-weight="800" fill="var(--ink)" font-family="Bricolage Grotesque,sans-serif">${esc(label)}</text>`;
+    [[a, "var(--blue)", 34], [b, "var(--mint)", 78]].forEach(([g, col, y0]) => { g.forEach((v, i) => { const j = Math.abs(Math.sin(i * 12.9898 + y0) * 43758.5453) % 1; s += `<circle cx="${x(v).toFixed(1)}" cy="${(y0 + (j - 0.5) * 22).toFixed(1)}" r="4.5" fill="${col}" fill-opacity=".55"/>`; }); const m = S.mean(g); s += `<rect x="${x(m) - 2.5}" y="${y0 - 16}" width="5" height="32" rx="2" fill="${col}"/>`; });
+    return s + "</svg>";
+  }
   function cis(items, marked) {
     const W = 720, H = 60 + items.length * 54, padL = 70, padR = 30, lo = -1, hi = 2.2; const x = v => padL + (v - lo) / (hi - lo) * (W - padL - padR);
     let s = `<svg class="plot" viewBox="0 0 ${W} ${H}" role="img" aria-label="Intervalos de confianza">`;
@@ -33,5 +50,5 @@
   }
   function reps(ps, need) { return `<div class="reps">${ps.map((p, i) => `<span class="${p < .05 ? "s" : ""}" title="p = ${p.toFixed(3)}">${p < .05 ? "✓" : "–"}</span>`).join("")}</div>`; }
   function repsFixed(sig, total) { const order = [1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0]; return `<div class="reps">${order.slice(0, total).map(v => `<span class="${v ? "s" : ""}">${v ? "p<.05" : "n.s."}</span>`).join("")}</div>`; }
-  return { groups, cis, power, reps, repsFixed, esc };
+  return { groups, scatter, miniGroups, cis, power, reps, repsFixed, esc };
 });

@@ -91,3 +91,36 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-weight:700;z-index:40;max-width:calc(100% - 32px)}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* v2 */
+details.lesson{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:8px 12px;background:rgba(95,224,160,.06)}
+details.lesson summary{cursor:pointer;font-weight:800;color:var(--mint);list-style:none}
+details.lesson summary::-webkit-details-marker{display:none}
+details.lesson p{margin:8px 0 2px;font-size:15px;line-height:1.55;color:var(--ink2)}
+.zone{text-align:center;padding:26px 18px}
+.zemoji{font-size:64px;line-height:1;margin:6px 0 10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt.pick{padding:6px;display:block}
+.opt.pick svg{width:100%;height:auto}
+.vf{display:grid;gap:8px}
+.vfrow{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-weight:700}
+.vfrow>span{flex:1;min-width:0}
+.vfbtns{display:flex;gap:6px;flex:none}
+.vfb{font:inherit;font-weight:800;font-size:18px;width:46px;height:46px;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.vfb[aria-pressed="true"]{border-color:var(--amber);background:rgba(255,179,71,.15)}
+.vfb.ok{border-color:var(--mint);background:rgba(95,224,160,.2)} .vfb.bad{border-color:var(--red);background:rgba(255,123,107,.2)}
+.vfb:disabled{cursor:default}
+.opt.ord .rk{color:var(--amber);font-size:20px}
+.opt.ord[aria-pressed="true"]{border-color:var(--amber)}
+.match{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.match .col{display:grid;gap:8px;align-content:start}
+.match .opt{font-size:14px;min-height:64px;padding:10px}
+.match .opt.paired{opacity:.75;border-style:dashed}
+.match .opt.ok{opacity:1} .match .opt.bad{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;display:grid;place-items:center;padding:16px}
+.modalbox{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;max-width:720px;width:100%;max-height:90vh;overflow:auto}
+.gloss{display:grid;gap:10px;margin-top:12px}
+.gloss div{background:var(--panel2);border-radius:12px;padding:10px 12px}
+.gloss b{color:var(--mint)} .gloss p{margin:4px 0 0;font-size:14.5px;color:var(--ink2);line-height:1.5}
+#chulBtn{cursor:pointer;font-size:16px}
+@media (max-width:420px){.match .opt{font-size:13px;padding:8px}.match .opt .k{width:30px;height:30px;font-size:13px}}

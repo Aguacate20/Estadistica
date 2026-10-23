@@ -1,6 +1,6 @@
 # Arena de Pruebas · competencia sincronizada
 
-Juego por equipos para la Sesión 6 de *Diseños de investigación I* (Corte III). Los equipos entran desde el celular con un código de 4 letras, avanzan a su ritmo por 15 retos gráficos (señal y ruido, tamaño del efecto, tamaño de muestra, qué prueba toca, leer resultados, supuestos, escribir en APA) y el marcador se mueve en vivo en el proyector. Nadie se registra: solo código + nombre de equipo.
+Juego por equipos para la Sesión 6 de *Diseños de investigación I* (Corte III). Los equipos entran desde el celular con un código de 4 letras, avanzan a su ritmo por seis mundos con más de 60 retos gráficos (señal y ruido, tamaño del efecto, tamaño de muestra, qué prueba toca, leer resultados, escribir y supuestos), en orden distinto para cada equipo y el marcador se mueve en vivo en el proyector. Nadie se registra: solo código + nombre de equipo.
 
 - `/` → celular de los equipos
 - `/profe` → proyector del docente (crea la arena, abre, +5 min, termina, reinicia)
@@ -29,9 +29,9 @@ node dev-server.js        # http://localhost:3000  (celular) · http://localhost
 
 ## Reglas del juego (están en las pantallas)
 
-- Cada reto vale hasta 100 puntos; en los de opción múltiple, el segundo intento vale 50 y el tercero muestra la respuesta.
-- Controles deslizantes (d, n): puntos según la cercanía al valor correcto.
-- Máquina de réplicas: hay que lograr 16 de 20 réplicas significativas; más puntos con menos personas; −10 por intento fallido.
+- Seis mundos en orden fijo; dentro de cada mundo, los retos van barajados para cada equipo (semilla por equipo, calculada en el servidor).
+- Cada reto abre con "Primero, lo básico" (lección para dummies), termina con el porqué, y la 📖 chuleta (glosario) está siempre arriba. Al entrar a un mundo aparece su introducción.
+- Tipos de reto: opción múltiple (100 / 50 en segundo intento), selección múltiple, verdadero/falso en ráfaga (25 por acierto), ordenar (100 exacto, 20 por posición), emparejar (25 por pareja), deslizadores de d, r y n (puntos por cercanía), elegir la nube más correlacionada, y la máquina de réplicas (16 de 20 con la menor gente; −10 por intento fallido).
 - Racha: tres retos perfectos seguidos dan +25 por cada uno adicional.
 - Ranking: puntos; empate lo gana quien terminó antes.
 

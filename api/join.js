@@ -13,7 +13,8 @@ module.exports = async (req, res) => {
   const teams = await G.getTeams(code);
   if (teams.some(t => t.name.toLowerCase() === name.toLowerCase())) return send(res, 400, { error: "Ya hay un equipo con ese nombre. Elijan otro." });
   if (teams.length >= 30) return send(res, 400, { error: "La arena está llena." });
-  const t = { id: G.rnd(6), token: G.rnd(16), name, emoji, joinedAt: G.now(), pts: 0, step: 0, attempts: {}, streak: 0, finishedAt: null, lastAt: null, log: [] };
+  const seed = Math.floor(Math.random() * 1e9);
+  const t = { id: G.rnd(6), token: G.rnd(16), name, emoji, joinedAt: G.now(), pts: 0, step: 0, seed, order: G.C.orderFor(seed), attempts: {}, streak: 0, finishedAt: null, lastAt: null, log: [] };
   await G.saveTeam(code, t);
   send(res, 200, { teamId: t.id, token: t.token, game: G.publicGame(g), you: G.publicTeam(t) });
 };

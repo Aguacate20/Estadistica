@@ -10,14 +10,15 @@ module.exports = async (req, res) => {
   if (!t || t.token !== b.token) return send(res, 403, { error: "Equipo no reconocido. Vuelvan a entrar con el código." });
   if (!G.isLive(g)) return send(res, 400, { error: g.status === "lobby" ? "La arena todavía no empieza." : "La arena ya terminó." });
   if (t.finishedAt) return send(res, 400, { error: "Ya terminaron todos los retos." });
-  const ch = C.CH[t.step];
+  const order = t.order && t.order.length ? t.order : C.CH.map(c => c.id);
+  const ch = C.byId(order[t.step]);
   if (!ch || ch.id !== b.ch) return send(res, 409, { error: "Ese no es su reto actual.", you: G.publicTeam(t) });
   const attempt = (t.attempts[ch.id] || 0) + 1; t.attempts[ch.id] = attempt;
   const r = C.grade(ch, b.answer, attempt);
   let bonus = 0;
   if (r.done) {
     if (r.pts >= C.PTS_FULL) { t.streak += 1; if (t.streak >= 3) bonus = C.STREAK_BONUS; } else t.streak = 0;
-    t.step += 1; if (t.step >= C.CH.length) t.finishedAt = G.now();
+    t.step += 1; if (t.step >= order.length) t.finishedAt = G.now();
     t.log.push({ ch: ch.id, pts: r.pts + bonus, attempts: attempt });
   }
   t.pts = Math.max(0, t.pts + r.pts + bonus); t.lastAt = G.now();

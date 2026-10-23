@@ -24,6 +24,9 @@
   /* máquina de réplicas: `reps` estudios con n por grupo; cada réplica k usa SIEMPRE las mismas
      personas (números comunes), así que subir n agrega gente en vez de cambiarlo todo. */
   function replicate(seedBase, n, d, reps, nmax) { nmax = nmax || 80; let sig = 0; const ps = []; for (let k = 0; k < reps; k++) { const r = rng(seedBase * 1000 + k); const a = [], b = []; for (let i = 0; i < nmax; i++) { const za = r.n(), zb = r.n(); if (i < n) { a.push(60 + 12 * za); b.push(60 + d * 12 + 12 * zb); } } const p = welch(a, b).p; ps.push(p); if (p < .05) sig++; } return { sig, ps }; }
+  /* nube de puntos con correlación r (semilla) */
+  function simCorr(seed, n, r) { const g = rng(seed); const x = [], y = []; for (let i = 0; i < n; i++) { const zx = g.n(), zy = r * zx + Math.sqrt(1 - r * r) * g.n(); x.push(50 + 15 * zx); y.push(50 + 15 * zy); } return { x, y }; }
+  function pearson(x, y) { const mx = mean(x), my = mean(y); let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < x.length; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; syy += (y[i] - my) ** 2; } return sxy / Math.sqrt(sxx * syy); }
   const fmtP = p => p < .001 ? "p < .001" : "p = " + p.toFixed(3).replace(/^0/, "");
-  return { rng, mean, sd, welch, Phi, power, nFor80, sim, replicate, fmtP };
+  return { rng, mean, sd, welch, Phi, power, nFor80, sim, replicate, simCorr, pearson, fmtP };
 });
