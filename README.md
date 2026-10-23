@@ -30,7 +30,7 @@ node dev-server.js        # http://localhost:3000  (celular) · http://localhost
 ## Reglas del juego (están en las pantallas)
 
 - Seis mundos en orden fijo; dentro de cada mundo, los retos van barajados para cada equipo (semilla por equipo, calculada en el servidor).
-- Cada reto abre con "Primero, lo básico" (lección para dummies), termina con el porqué, y la 📖 chuleta (glosario) está siempre arriba. Al entrar a un mundo aparece su introducción.
+- Cada reto abre con "Primero, lo básico" (lección breve), termina con el porqué, y el glosario "Recuerda los conceptos" está siempre arriba. Al entrar a un mundo aparece su introducción.
 - Tipos de reto: opción múltiple (100 / 50 en segundo intento), selección múltiple, verdadero/falso en ráfaga (25 por acierto), ordenar (100 exacto, 20 por posición), emparejar (25 por pareja), deslizadores de d, r y n (puntos por cercanía), elegir la nube más correlacionada, y la máquina de réplicas (16 de 20 con la menor gente; −10 por intento fallido).
 - Racha: tres retos perfectos seguidos dan +25 por cada uno adicional.
 - Ranking: puntos; empate lo gana quien terminó antes.

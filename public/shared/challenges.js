@@ -1,6 +1,6 @@
 /* Los retos de la Arena (v2). Un mismo archivo para el celular (dibuja) y el servidor (califica).
    - ZONES: seis mundos en orden fijo; dentro de cada mundo el orden de los retos es aleatorio por equipo.
-   - Cada reto trae una lección "para dummies" (lesson), la pregunta (prompt) y el porqué (why).
+   - Cada reto trae una lección breve (lesson), la pregunta (prompt) y el porqué (why).
    - Los retos con datos se generan con semillas: todos ven lo mismo y el servidor recalcula la verdad.
    - grade() es lo único que conoce las respuestas; publicList() las quita antes de enviarlas al celular. */
 (function (root, factory) {
@@ -19,7 +19,7 @@
     { id: "escribir", name: "Escribir y supuestos", emoji: "✍️", intro: "Antes de la prueba se revisan dos supuestos: si los datos se parecen a una campana (Shapiro-Wilk) y si las varianzas de los grupos son parecidas (Levene). Se reportan como salgan. Luego se escribe: medias y DE de cada grupo, estadístico con grados de libertad, p exacto, d e intervalo. Sin adjetivos.", tip: "Welch siempre: no exige varianzas iguales." },
   ];
 
-  /* ================= CHULETA (glosario para dummies) ================= */
+  /* ================= RECUERDA LOS CONCEPTOS (glosario) ================= */
   const GLOSSARY = [
     { k: "Señal y ruido", t: "Señal = diferencia entre las medias de los grupos. Ruido = lo que varía la gente dentro de cada grupo (la desviación estándar). Si la señal no supera al ruido, el azar puede explicarlo todo." },
     { k: "Estadístico t", t: "Señal ÷ ruido para comparar DOS medias. t cerca de 0: nada que ver. t lejos de 0 (más de ±2, aprox.): la diferencia es rara por azar. Viene con “grados de libertad” (gl), que es más o menos el número de personas menos dos." },
