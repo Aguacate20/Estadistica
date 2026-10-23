@@ -14,7 +14,8 @@ module.exports = async (req, res) => {
   const ch = C.byId(order[t.step]);
   if (!ch || ch.id !== b.ch) return send(res, 409, { error: "Ese no es su reto actual.", you: G.publicTeam(t) });
   const nowMs = G.now(); const since = (t.lastAt || g.startedAt || nowMs); const secs = Math.round((nowMs - since) / 100) / 10;
-  const MIN_SECS = Number(process.env.ARENA_MIN_SECS ?? 6); // menos de esto no da tiempo ni de leer el reto
+  const MINS = { mcq: 8, multi: 8, vf: 10, order: 8, match: 10, signal: 5, corrpick: 5, dslider: 5, rslider: 5, nslider: 5, replicas: 6 };
+  const MIN_SECS = process.env.ARENA_MIN_SECS !== undefined ? Number(process.env.ARENA_MIN_SECS) : (MINS[ch.kind] || 6); // menos de esto no da tiempo ni de leer el reto
   if (secs < MIN_SECS) return send(res, 429, { error: `Muy rápido: lean el reto antes de enviar (${MIN_SECS} s mínimo).`, wait: MIN_SECS - secs });
   const attempt = (t.attempts[ch.id] || 0) + 1; t.attempts[ch.id] = attempt;
   const r = C.grade(ch, b.answer, attempt);

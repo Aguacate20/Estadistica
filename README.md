@@ -35,6 +35,16 @@ node dev-server.js        # http://localhost:3000  (celular) · http://localhost
 - Racha: tres retos perfectos seguidos dan +25 por cada uno adicional.
 - Ranking: puntos; empate lo gana quien terminó antes.
 
+## Contra la trampa
+
+- Las respuestas y la función que las calcula viven solo en el servidor; el celular recibe los retos sin respuestas.
+- Los casos de "¿qué prueba toca?" son esquemas dibujados (grupos, R, X, O), no texto: no se pueden copiar y pegar en un chat.
+- El contenido de los retos no se puede seleccionar ni copiar (CSS `user-select: none`).
+- El orden de las opciones es distinto para cada equipo (semilla por equipo): "la B" no sirve de un equipo a otro.
+- Tiempo mínimo por envío según el tipo de reto (5–10 s); los envíos más rápidos se rechazan sin penalizar.
+- Cada envío queda registrado con segundos desde el anterior, hora y respuesta (`log` de cada equipo). El proyector marca ⚠️ al equipo con 5+ retos y menos de 15 s de promedio.
+- `consulta_equipos.sql` saca por equipo puntos, retos, minutos, puntos por minuto y el detalle de cada envío desde Supabase.
+
 ## Cambiar los retos
 
 Edite `public/shared/challenges.js`. Los retos con datos (`signal`, `dslider`, `nslider`, `replicas`) se generan con una semilla fija, así que todos ven lo mismo y el servidor puede recalcular la respuesta. Para los de opción múltiple (`mcq`, `multi`) la respuesta va en `answer` y nunca sale al cliente (`publicList()` la quita).

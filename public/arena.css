@@ -124,3 +124,7 @@ details.lesson p{margin:8px 0 2px;font-size:15px;line-height:1.55;color:var(--in
 .gloss b{color:var(--mint)} .gloss p{margin:4px 0 0;font-size:14.5px;color:var(--ink2);line-height:1.5}
 #chulBtn{cursor:pointer;font-size:16px}
 @media (max-width:420px){.match .opt{font-size:13px;padding:8px}.match .opt .k{width:30px;height:30px;font-size:13px}}
+
+/* anti copiar y pegar: el contenido de los retos no se puede seleccionar */
+.wrap{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea{-webkit-user-select:text;user-select:text}
