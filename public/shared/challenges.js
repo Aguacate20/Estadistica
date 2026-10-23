@@ -263,5 +263,8 @@
     return { ok: false, pts: 0, done: true, detail: "" };
   }
 
-  return { CH, ZONES, GLOSSARY, publicList, byId, zoneOf, orderFor, truth, grade, PTS_FULL, PTS_HALF, STREAK_BONUS };
+  const isServer = typeof module === "object" && module.exports;
+  const api = { CH: isServer ? CH : publicList(), ZONES, GLOSSARY, publicList, byId: isServer ? byId : (id => publicList().find(c => c.id === id)), zoneOf, orderFor, PTS_FULL, PTS_HALF, STREAK_BONUS };
+  if (isServer) Object.assign(api, { truth, grade });
+  return api;
 });
