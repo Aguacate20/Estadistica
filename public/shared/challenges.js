@@ -223,13 +223,13 @@
     const t = truth(c); const p = c.params || {};
     if (c.kind === "signal" || c.kind === "mcq" || c.kind === "corrpick") {
       const correct = c.kind === "signal" ? t.answer : c.answer; const ok = Number(answer) === correct;
-      const pts = ok ? (attempt === 1 ? PTS_FULL : attempt === 2 ? PTS_HALF : 0) : 0;
-      return { ok, pts, done: ok || attempt >= 3, correct, detail: t.w ? `t(${t.w.df.toFixed(1)}) = ${t.w.t.toFixed(2)}, ${S.fmtP(t.w.p)}, d = ${t.w.d.toFixed(2)}.` : "" };
+      const pts = ok ? PTS_FULL : 0;
+      return { ok, pts, done: true, correct, detail: t.w ? `t(${t.w.df.toFixed(1)}) = ${t.w.t.toFixed(2)}, ${S.fmtP(t.w.p)}, d = ${t.w.d.toFixed(2)}.` : "" };
     }
     if (c.kind === "multi") {
       const a = Array.isArray(answer) ? answer.map(Number).sort() : []; const key = c.answer.slice().sort();
       const exact = a.length === key.length && a.every((v, i) => v === key[i]);
-      return { ok: exact, pts: exact ? (attempt === 1 ? PTS_FULL : PTS_HALF) : 0, done: exact || attempt >= 2, correct: key, detail: exact ? "" : "No es exactamente ese conjunto." };
+      return { ok: exact, pts: exact ? PTS_FULL : 0, done: true, correct: key, detail: exact ? "" : "No es exactamente ese conjunto." };
     }
     if (c.kind === "vf") {
       const a = Array.isArray(answer) ? answer : []; let n = 0; c.answer.forEach((v, i) => { if (a[i] === v) n++; });
@@ -256,7 +256,7 @@
     }
     if (c.kind === "replicas") {
       const n = Math.round(Number(answer)); const r = S.replicate(p.seedBase, n, p.d, p.reps);
-      if (r.sig < p.need) return { ok: false, pts: -10, done: false, correct: t.nmin, detail: `Con ${n} por grupo solo ${r.sig} de ${p.reps} réplicas salieron significativas. Suban el n (−10 puntos por intento fallido).` };
+      if (r.sig < p.need) return { ok: false, pts: 0, done: true, correct: t.nmin, detail: `Con ${n} por grupo solo ${r.sig} de ${p.reps} réplicas salieron significativas: potencia insuficiente. El mínimo que lo logra es ${t.nmin} por grupo.` };
       const extra = n - t.nmin; const pts = extra <= 4 ? PTS_FULL : extra <= 12 ? 70 : 40;
       return { ok: true, pts, done: true, correct: t.nmin, detail: `${r.sig} de ${p.reps} con ${n} por grupo. El mínimo que lo logra es ${t.nmin}${extra > 4 ? `: usaron ${extra} personas de más por grupo` : ": casi al milímetro"}.` };
     }
