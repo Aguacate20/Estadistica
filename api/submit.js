@@ -13,17 +13,25 @@ module.exports = async (req, res) => {
   const order = t.order && t.order.length ? t.order : C.CH.map(c => c.id);
   const ch = C.byId(order[t.step]);
   if (!ch || ch.id !== b.ch) return send(res, 409, { error: "Ese no es su reto actual.", you: G.publicTeam(t) });
-  const nowMs = G.now(); const since = (t.lastAt || g.startedAt || nowMs); const secs = Math.round((nowMs - since) / 100) / 10;
+  const nowMs = G.now(); const since = (t.served && t.served.id === ch.id) ? t.served.at : (t.lastAt || g.startedAt || nowMs); const secs = Math.round((nowMs - since) / 100) / 10;
+  const hidden = Math.max(0, Math.min(99, Number(b.hidden) || 0));
+  /* valor del reto: 100 % hasta FULL_SECS; baja en línea recta hasta FLOOR en DECAY_SECS; salir de la app lo deja en la mitad como máximo */
+  const FULL_SECS = 60, DECAY_SECS = 150, FLOOR = 0.4;
+  let factor = secs <= FULL_SECS ? 1 : secs >= DECAY_SECS ? FLOOR : 1 - (secs - FULL_SECS) / (DECAY_SECS - FULL_SECS) * (1 - FLOOR);
+  if (hidden > 0) factor = Math.min(factor, 0.5);
   const MINS = { mcq: 8, multi: 8, vf: 10, order: 8, match: 10, signal: 5, corrpick: 5, dslider: 5, rslider: 5, nslider: 5, replicas: 6 };
   const MIN_SECS = process.env.ARENA_MIN_SECS !== undefined ? Number(process.env.ARENA_MIN_SECS) : (MINS[ch.kind] || 6); // menos de esto no da tiempo ni de leer el reto
   if (secs < MIN_SECS) return send(res, 429, { error: `Muy rápido: lean el reto antes de enviar (${MIN_SECS} s mínimo).`, wait: MIN_SECS - secs });
   const attempt = (t.attempts[ch.id] || 0) + 1; t.attempts[ch.id] = attempt;
   const r = C.grade(ch, b.answer, attempt);
+  const rawPts = r.pts; if (r.pts > 0) r.pts = Math.round(r.pts * factor);
+  if (r.pts !== rawPts) r.detail = (r.detail ? r.detail + " " : "") + (hidden > 0 ? `Salieron de la arena durante el reto: vale máximo la mitad (${rawPts} → ${r.pts}).` : `Tardaron ${Math.round(secs)} s: el reto perdió valor (${rawPts} → ${r.pts}).`);
   let bonus = 0;
   if (r.done) {
-    if (r.pts >= C.PTS_FULL) { t.streak += 1; if (t.streak >= 3) bonus = C.STREAK_BONUS; } else t.streak = 0;
+    if (rawPts >= C.PTS_FULL && factor === 1) { t.streak += 1; if (t.streak >= 3) bonus = C.STREAK_BONUS; } else t.streak = 0;
     t.step += 1; if (t.step >= order.length) t.finishedAt = G.now();
-    t.log.push({ ch: ch.id, pts: r.pts + bonus, attempts: attempt, secs, at: nowMs, a: typeof b.answer === "object" ? JSON.stringify(b.answer).slice(0, 60) : String(b.answer).slice(0, 30) });
+    t.log.push({ ch: ch.id, pts: r.pts + bonus, raw: rawPts, factor: Math.round(factor * 100) / 100, hidden, attempts: attempt, secs, at: nowMs, a: typeof b.answer === "object" ? JSON.stringify(b.answer).slice(0, 60) : String(b.answer).slice(0, 30) });
+    t.hiddenTotal = (t.hiddenTotal || 0) + (hidden > 0 ? 1 : 0); delete t.served;
     t.fast = (t.fast || 0) + (secs < 12 ? 1 : 0);
   }
   t.pts = Math.max(0, t.pts + r.pts + bonus); t.lastAt = nowMs;

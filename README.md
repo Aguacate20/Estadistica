@@ -43,6 +43,7 @@ node dev-server.js        # http://localhost:3000  (celular) · http://localhost
 - El orden de las opciones es distinto para cada equipo (semilla por equipo): "la B" no sirve de un equipo a otro.
 - Tiempo mínimo por envío según el tipo de reto (5–10 s); los envíos más rápidos se rechazan sin penalizar.
 - Cada envío queda registrado con segundos desde el anterior, hora y respuesta (`log` de cada equipo). El proyector marca ⚠️ al equipo con 5+ retos y menos de 15 s de promedio.
+- El reto vale el 100 % durante el primer minuto desde que se muestra; después baja en línea recta hasta el 40 % a los 150 s (fotografiar y preguntar afuera cuesta puntos). Si el celular sale de la arena durante un reto (otra app, cámara), ese reto vale máximo la mitad y el proyector muestra 📵 con el conteo.
 - `consulta_equipos.sql` saca por equipo puntos, retos, minutos, puntos por minuto y el detalle de cada envío desde Supabase.
 
 ## Cambiar los retos
