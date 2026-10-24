@@ -15,9 +15,10 @@ module.exports = async (req, res) => {
   if (!ch || ch.id !== b.ch) return send(res, 409, { error: "Ese no es su reto actual.", you: G.publicTeam(t) });
   const nowMs = G.now(); const since = (t.served && t.served.id === ch.id) ? t.served.at : (t.lastAt || g.startedAt || nowMs); const secs = Math.round((nowMs - since) / 100) / 10;
   const hidden = Math.max(0, Math.min(99, Number(b.hidden) || 0));
-  /* valor del reto: 100 % hasta FULL_SECS; baja en línea recta hasta FLOOR en DECAY_SECS; salir de la app lo deja en la mitad como máximo */
-  const FULL_SECS = 60, DECAY_SECS = 150, FLOOR = 0.4;
-  let factor = secs <= FULL_SECS ? 1 : secs >= DECAY_SECS ? FLOOR : 1 - (secs - FULL_SECS) / (DECAY_SECS - FULL_SECS) * (1 - FLOOR);
+  /* ventana por tipo de reto desde que el equipo destapó la pregunta; fuera de la ventana vale 0; salir de la app lo deja en la mitad como máximo */
+  const WIN = { signal: 45, corrpick: 40, mcq: 60, multi: 60, vf: 75, order: 75, match: 75, dslider: 50, rslider: 50, nslider: 60, replicas: 90 };
+  const window_ = (WIN[ch.kind] || 60) + 5; // 5 s de gracia por la red
+  let factor = secs <= window_ ? 1 : 0;
   if (hidden > 0) factor = Math.min(factor, 0.5);
   const MINS = { mcq: 8, multi: 8, vf: 10, order: 8, match: 10, signal: 5, corrpick: 5, dslider: 5, rslider: 5, nslider: 5, replicas: 6 };
   const MIN_SECS = process.env.ARENA_MIN_SECS !== undefined ? Number(process.env.ARENA_MIN_SECS) : (MINS[ch.kind] || 6); // menos de esto no da tiempo ni de leer el reto
@@ -25,7 +26,7 @@ module.exports = async (req, res) => {
   const attempt = (t.attempts[ch.id] || 0) + 1; t.attempts[ch.id] = attempt;
   const r = C.grade(ch, b.answer, attempt);
   const rawPts = r.pts; if (r.pts > 0) r.pts = Math.round(r.pts * factor);
-  if (r.pts !== rawPts) r.detail = (r.detail ? r.detail + " " : "") + (hidden > 0 ? `Salieron de la arena durante el reto: vale máximo la mitad (${rawPts} → ${r.pts}).` : `Tardaron ${Math.round(secs)} s: el reto perdió valor (${rawPts} → ${r.pts}).`);
+  if (r.pts !== rawPts) r.detail = (r.detail ? r.detail + " " : "") + (factor === 0 ? `Se acabó el tiempo (${Math.round(secs)} s): el reto vale 0.` : `Salieron de la arena durante el reto: vale máximo la mitad (${rawPts} → ${r.pts}).`);
   let bonus = 0;
   if (r.done) {
     if (rawPts >= C.PTS_FULL && factor === 1) { t.streak += 1; if (t.streak >= 3) bonus = C.STREAK_BONUS; } else t.streak = 0;
